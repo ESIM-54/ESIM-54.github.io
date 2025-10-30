@@ -1,132 +1,745 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Piano Game</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        
-        h1 {
-            color: #333;
-            text-align: center;
-        }
-        
-        p {
-            color: #666;
-            line-height: 1.6;
-        }
-        
-        .piano {
-            display: flex;
-            gap: 2px;
-            justify-content: center;
-            margin: 30px 0;
-            padding: 20px;
-            background-color: #8b4513;
-            border-radius: 10px;
-        }
-        
-        .key {
-            width: 60px;
-            height: 200px;
-            background-color: white;
-            border: 2px solid #333;
-            border-radius: 0 0 5px 5px;
-            cursor: pointer;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            padding-bottom: 10px;
-            font-weight: bold;
-            color: #999;
-            transition: background-color 0.1s;
-        }
-        
-        .key:hover {
-            background-color: #f0f0f0;
-        }
-        
-        .key:active {
-            background-color: #ddd;
-            transform: translateY(2px);
-        }
-        
-        ul {
-            background-color: white;
-            padding: 20px 40px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        
-        li {
-            margin: 10px 0;
-            color: #555;
-        }
-    </style>
-</head>
-<body>
-    <h1>🎹 My First Piano</h1>
+const nextRound = () => {
+    if (playerHP <= 0 || gameWon) {
+      // Game over or won - reset everything
+      setRound(1);
+      setMaxPlayerHP(100);
+      setMaxOpponentHP(100);
+      setMaxEnergy(50);
+      setPlayerHP(100);
+      setOpponentHP(100);
+      setPlayerEnergy(50);
+      setUnlockedAbilities([]);
+      setSelectedCardIds([]);
+      setRoundOver(false);
+      setGameWon(false);
+      setIsPlayerTurn(true);
+      setOpponentStunned(false);
+      setEnergyBlocked(0);
+      setPlayerPoisoned(0);
+      setPlayerPoisonTurns(0);
+      setPlayerWeakened(false);
+      setPlayerShield(0);
+      setPlayerReflect(0);
+      setOpponentPoison(0);
+      setPoisonTurns(0);
+      setFocusActive(0);
+      setGameLog(['Battle begins!']);
+    } else {
+      // Show card selection
+      setShowCardSelection(true);
+    }
+  };import React, { useState } from 'react';
+import { Swords, User } from 'lucide-react';
+
+const CARD_ABILITIES = [
+  [
+    { id: 'heal', name: 'Healing Meditation', damage: 0, energy: 20, heal: 30, description: 'Restore 30 HP' },
+    { id: 'flame', name: 'Flame Strike', damage: 35, energy: 30, description: 'Powerful fire attack' },
+    { id: 'counter', name: 'Counter Stance', damage: 20, energy: 25, reflect: 10, description: 'Deal 20 damage and reflect 10 damage next turn' }
+  ],
+  [
+    { id: 'lightning', name: 'Lightning Slash', damage: 40, energy: 40, description: 'Devastating electric strike' },
+    { id: 'drain', name: 'Soul Drain', damage: 15, energy: 30, heal: 15, description: 'Deal 15 damage and heal 15 HP' },
+    { id: 'cleanse', name: 'Purifying Light', damage: 0, energy: 15, cleanse: true, description: 'Remove all negative effects' }
+  ],
+  [
+    { id: 'fury', name: 'Berserker Fury', damage: 50, energy: 45, recoil: 10, description: 'Massive damage but take 10 recoil' },
+    { id: 'poison', name: 'Poison Blade', damage: 20, energy: 35, poison: 5, description: 'Deal 20 damage + 5 poison per turn (3 turns)' },
+    { id: 'focus', name: 'Inner Focus', damage: 0, energy: 15, energyBoost: 10, description: 'Gain +10 energy per attack for 3 turns' }
+  ]
+];
+
+export default function SamuraiBattle() {
+  const [round, setRound] = useState(1);
+  const [maxPlayerHP, setMaxPlayerHP] = useState(100);
+  const [maxOpponentHP, setMaxOpponentHP] = useState(100);
+  const [maxEnergy, setMaxEnergy] = useState(50);
+  const [playerHP, setPlayerHP] = useState(100);
+  const [opponentHP, setOpponentHP] = useState(100);
+  const [playerEnergy, setPlayerEnergy] = useState(50);
+  const [opponentStunned, setOpponentStunned] = useState(false);
+  const [energyBlocked, setEnergyBlocked] = useState(0);
+  const [playerPoisoned, setPlayerPoisoned] = useState(0);
+  const [playerPoisonTurns, setPlayerPoisonTurns] = useState(0);
+  const [playerWeakened, setPlayerWeakened] = useState(false);
+  const [gameLog, setGameLog] = useState(['Battle begins!']);
+  const [isPlayerTurn, setIsPlayerTurn] = useState(true);
+  const [roundOver, setRoundOver] = useState(false);
+  const [gameWon, setGameWon] = useState(false);
+  const [showCardSelection, setShowCardSelection] = useState(false);
+  const [unlockedAbilities, setUnlockedAbilities] = useState([]);
+  const [selectedCardIds, setSelectedCardIds] = useState([]);
+  const [playerShield, setPlayerShield] = useState(0);
+  const [playerReflect, setPlayerReflect] = useState(0);
+  const [opponentPoison, setOpponentPoison] = useState(0);
+  const [poisonTurns, setPoisonTurns] = useState(0);
+  const [focusActive, setFocusActive] = useState(0);
+
+  const addLog = (message) => {
+    setGameLog(prev => [...prev.slice(-4), message]);
+  };
+
+  const checkRoundOver = (playerHp, opponentHp) => {
+    if (playerHp <= 0) {
+      setRoundOver(true);
+      addLog('You have been defeated! Game Over!');
+      return true;
+    }
+    if (opponentHp <= 0) {
+      setRoundOver(true);
+      if (round >= 5) {
+        setGameWon(true);
+        addLog('You have conquered the dojo! Ultimate Victory!');
+      } else {
+        addLog(`Round ${round} complete! Victory!`);
+      }
+      return true;
+    }
+    return false;
+  };
+
+  const applyStatusEffects = () => {
+    // Apply poison damage to opponent
+    if (opponentPoison > 0 && poisonTurns > 0) {
+      const newOpponentHP = Math.max(0, opponentHP - opponentPoison);
+      setOpponentHP(newOpponentHP);
+      addLog(`Poison deals ${opponentPoison} damage to opponent!`);
+      setPoisonTurns(poisonTurns - 1);
+      if (poisonTurns === 1) {
+        setOpponentPoison(0);
+      }
+    }
     
-    <p>Welcome to your simple piano game! Click on the keys below to play different notes. Each key makes a unique sound.</p>
+    // Apply poison damage to player
+    if (playerPoisoned > 0 && playerPoisonTurns > 0) {
+      const newPlayerHP = Math.max(0, playerHP - playerPoisoned);
+      setPlayerHP(newPlayerHP);
+      addLog(`You take ${playerPoisoned} poison damage!`);
+      setPlayerPoisonTurns(playerPoisonTurns - 1);
+      if (playerPoisonTurns === 1) {
+        setPlayerPoisoned(0);
+      }
+    }
+  };
+
+  const opponentTurn = (currentPlayerHP, currentShield, currentReflect) => {
+    setTimeout(() => {
+      applyStatusEffects();
+      
+      if (opponentStunned) {
+        addLog('Opponent is stunned and cannot act!');
+        setOpponentStunned(false);
+        setIsPlayerTurn(true);
+        return;
+      }
+      
+      // Determine which ability to use based on round and random chance
+      const rand = Math.random();
+      let abilityUsed = 'attack';
+      
+      // 25% chance for special abilities
+      if (rand < 0.25) {
+        if (round >= 3 && rand < 0.08) {
+          abilityUsed = 'venomStrike'; // Poison ability
+        } else if (round >= 2 && rand < 0.16) {
+          abilityUsed = 'weakening'; // Damage reduction
+        } else {
+          abilityUsed = 'thunderbolt'; // Energy block
+        }
+      }
+      
+      let damage = 15;
+      
+      if (abilityUsed === 'thunderbolt') {
+        // Apply shield
+        if (currentShield > 0) {
+          const blockedDamage = Math.min(damage, currentShield);
+          damage -= blockedDamage;
+          setPlayerShield(0);
+          addLog(`Shield blocks ${blockedDamage} damage!`);
+        }
+        
+        // Apply reflect
+        if (currentReflect > 0) {
+          const newOpponentHP = Math.max(0, opponentHP - currentReflect);
+          setOpponentHP(newOpponentHP);
+          addLog(`Reflected ${currentReflect} damage back to opponent!`);
+          setPlayerReflect(0);
+        }
+        
+        const newPlayerHP = Math.max(0, currentPlayerHP - damage);
+        setPlayerHP(newPlayerHP);
+        setEnergyBlocked(2);
+        addLog(`Opponent uses Thunderbolt for ${damage} damage! Your energy gain is blocked for 2 turns!`);
+        
+        if (!checkRoundOver(newPlayerHP, opponentHP)) {
+          setIsPlayerTurn(true);
+        }
+      } else if (abilityUsed === 'venomStrike') {
+        damage = 12;
+        
+        // Apply shield
+        if (currentShield > 0) {
+          const blockedDamage = Math.min(damage, currentShield);
+          damage -= blockedDamage;
+          setPlayerShield(0);
+          addLog(`Shield blocks ${blockedDamage} damage!`);
+        }
+        
+        // Apply reflect
+        if (currentReflect > 0) {
+          const newOpponentHP = Math.max(0, opponentHP - currentReflect);
+          setOpponentHP(newOpponentHP);
+          addLog(`Reflected ${currentReflect} damage back to opponent!`);
+          setPlayerReflect(0);
+        }
+        
+        const newPlayerHP = Math.max(0, currentPlayerHP - damage);
+        setPlayerHP(newPlayerHP);
+        setPlayerPoisoned(4);
+        setPlayerPoisonTurns(4);
+        addLog(`Opponent uses Venom Strike for ${damage} damage! You are poisoned for 4 turns!`);
+        
+        if (!checkRoundOver(newPlayerHP, opponentHP)) {
+          setIsPlayerTurn(true);
+        }
+      } else if (abilityUsed === 'weakening') {
+        damage = 10;
+        
+        // Apply shield
+        if (currentShield > 0) {
+          const blockedDamage = Math.min(damage, currentShield);
+          damage -= blockedDamage;
+          setPlayerShield(0);
+          addLog(`Shield blocks ${blockedDamage} damage!`);
+        }
+        
+        // Apply reflect
+        if (currentReflect > 0) {
+          const newOpponentHP = Math.max(0, opponentHP - currentReflect);
+          setOpponentHP(newOpponentHP);
+          addLog(`Reflected ${currentReflect} damage back to opponent!`);
+          setPlayerReflect(0);
+        }
+        
+        const newPlayerHP = Math.max(0, currentPlayerHP - damage);
+        setPlayerHP(newPlayerHP);
+        setPlayerWeakened(true);
+        addLog(`Opponent uses Crushing Blow for ${damage} damage! Your damage is reduced by 30% next turn!`);
+        
+        if (!checkRoundOver(newPlayerHP, opponentHP)) {
+          setIsPlayerTurn(true);
+        }
+      } else {
+        // Normal attack
+        
+        // Apply shield
+        if (currentShield > 0) {
+          const blockedDamage = Math.min(damage, currentShield);
+          damage -= blockedDamage;
+          setPlayerShield(0);
+          addLog(`Shield blocks ${blockedDamage} damage!`);
+        }
+        
+        // Apply reflect
+        if (currentReflect > 0) {
+          const newOpponentHP = Math.max(0, opponentHP - currentReflect);
+          setOpponentHP(newOpponentHP);
+          addLog(`Reflected ${currentReflect} damage back to opponent!`);
+          setPlayerReflect(0);
+        }
+        
+        const newPlayerHP = Math.max(0, currentPlayerHP - damage);
+        setPlayerHP(newPlayerHP);
+        addLog(`Opponent attacks for ${damage} damage!`);
+        
+        if (!checkRoundOver(newPlayerHP, opponentHP)) {
+          setIsPlayerTurn(true);
+        }
+      }
+    }, 1000);
+  };
+
+  const handleAttack = () => {
+    if (!isPlayerTurn || roundOver) return;
     
-    <p>This piano has 7 keys, each representing a musical note from the C major scale. Try clicking them in order or create your own melody!</p>
+    let damage = 15;
     
-    <div class="piano">
-        <div class="key" data-note="C" onclick="playNote('C4')">C</div>
-        <div class="key" data-note="D" onclick="playNote('D4')">D</div>
-        <div class="key" data-note="E" onclick="playNote('E4')">E</div>
-        <div class="key" data-note="F" onclick="playNote('F4')">F</div>
-        <div class="key" data-note="G" onclick="playNote('G4')">G</div>
-        <div class="key" data-note="A" onclick="playNote('A4')">A</div>
-        <div class="key" data-note="B" onclick="playNote('B4')">B</div>
-        <div class="key" data-note="C" onclick="playNote('C5')">C</div>
+    // Apply weakening debuff
+    if (playerWeakened) {
+      damage = Math.floor(damage * 0.7);
+      setPlayerWeakened(false);
+    }
+    
+    let energyGain = 15;
+    
+    // Focus boost
+    if (focusActive > 0) {
+      energyGain += 10;
+      setFocusActive(focusActive - 1);
+    }
+    
+    const newOpponentHP = Math.max(0, opponentHP - damage);
+    
+    // Check if energy gain is blocked
+    let newEnergy = playerEnergy;
+    let logMessage = `You attack for ${damage} damage!`;
+    
+    if (energyBlocked > 0) {
+      logMessage += ' Energy gain blocked!';
+      setEnergyBlocked(energyBlocked - 1);
+    } else {
+      newEnergy = Math.min(maxEnergy, playerEnergy + energyGain);
+      logMessage += ` +${energyGain} energy!`;
+    }
+    
+    setOpponentHP(newOpponentHP);
+    setPlayerEnergy(newEnergy);
+    addLog(logMessage);
+    setIsPlayerTurn(false);
+    
+    if (!checkRoundOver(playerHP, newOpponentHP)) {
+      opponentTurn(playerHP, playerShield, playerReflect);
+    }
+  };
+
+  const handleSkill = (skillName) => {
+    if (!isPlayerTurn || roundOver) return;
+    
+    let damage = 0;
+    let energyCost = 0;
+    let message = '';
+    
+    if (skillName === 'doubleSlash') {
+      if (playerEnergy < 25) {
+        addLog('Not enough energy for Double Slash!');
+        return;
+      }
+      damage = 25;
+      
+      // Apply weakening debuff
+      if (playerWeakened) {
+        damage = Math.floor(damage * 0.7);
+        setPlayerWeakened(false);
+      }
+      
+      energyCost = 25;
+      message = `You use Double Slash for ${damage} damage!`;
+    } else if (skillName === 'flashBomb') {
+      if (playerEnergy < 35) {
+        addLog('Not enough energy for Flash Bomb!');
+        return;
+      }
+      damage = 10;
+      
+      // Apply weakening debuff
+      if (playerWeakened) {
+        damage = Math.floor(damage * 0.7);
+        setPlayerWeakened(false);
+      }
+      
+      energyCost = 35;
+      
+      const stunChance = Math.random();
+      if (stunChance < 0.5) {
+        setOpponentStunned(true);
+        message = `You use Flash Bomb for ${damage} damage! Opponent is stunned!`;
+      } else {
+        message = `You use Flash Bomb for ${damage} damage!`;
+      }
+    }
+    
+    const newOpponentHP = Math.max(0, opponentHP - damage);
+    const newEnergy = playerEnergy - energyCost;
+    
+    if (energyBlocked > 0) {
+      setEnergyBlocked(energyBlocked - 1);
+    }
+    
+    setOpponentHP(newOpponentHP);
+    setPlayerEnergy(newEnergy);
+    addLog(message);
+    setIsPlayerTurn(false);
+    
+    if (!checkRoundOver(playerHP, newOpponentHP)) {
+      opponentTurn(playerHP, playerShield, playerReflect);
+    }
+  };
+
+  const handleUnlockedAbility = (ability) => {
+    if (!isPlayerTurn || roundOver) return;
+    
+    if (playerEnergy < ability.energy) {
+      addLog(`Not enough energy for ${ability.name}!`);
+      return;
+    }
+    
+    let message = '';
+    let newOpponentHP = opponentHP;
+    let newPlayerHP = playerHP;
+    
+    // Handle cleanse ability
+    if (ability.cleanse) {
+      setPlayerPoisoned(0);
+      setPlayerPoisonTurns(0);
+      setPlayerWeakened(false);
+      setEnergyBlocked(0);
+      message = `You use ${ability.name}! All negative effects removed!`;
+    }
+    
+    // Handle different ability types
+    if (ability.heal) {
+      newPlayerHP = Math.min(maxPlayerHP, playerHP + ability.heal);
+      setPlayerHP(newPlayerHP);
+      message = message || `You use ${ability.name}! Restored ${ability.heal} HP!`;
+    }
+    
+    if (ability.damage > 0) {
+      let damage = ability.damage;
+      
+      // Apply weakening debuff
+      if (playerWeakened) {
+        damage = Math.floor(damage * 0.7);
+        setPlayerWeakened(false);
+      }
+      
+      newOpponentHP = Math.max(0, opponentHP - damage);
+      setOpponentHP(newOpponentHP);
+      message = `You use ${ability.name} for ${damage} damage!`;
+    }
+    
+    if (ability.reflect) {
+      setPlayerReflect(ability.reflect);
+      if (ability.damage > 0) {
+        message += ` Counter stance active!`;
+      } else {
+        message = `You use ${ability.name}! Counter stance active!`;
+      }
+    }
+    
+    if (ability.shield) {
+      setPlayerShield(ability.shield);
+      message = `You use ${ability.name}! Shield active (${ability.shield})!`;
+    }
+    
+    if (ability.recoil) {
+      newPlayerHP = Math.max(0, playerHP - ability.recoil);
+      setPlayerHP(newPlayerHP);
+      message += ` Took ${ability.recoil} recoil damage!`;
+    }
+    
+    if (ability.poison) {
+      setOpponentPoison(ability.poison);
+      setPoisonTurns(3);
+      message += ` Opponent is poisoned!`;
+    }
+    
+    if (ability.energyBoost) {
+      setFocusActive(3);
+      message = `You use ${ability.name}! Energy gain boosted for 3 turns!`;
+    }
+    
+    const newEnergy = playerEnergy - ability.energy;
+    setPlayerEnergy(newEnergy);
+    addLog(message);
+    
+    if (energyBlocked > 0 && !ability.cleanse) {
+      setEnergyBlocked(energyBlocked - 1);
+    }
+    
+    setIsPlayerTurn(false);
+    
+    if (!checkRoundOver(newPlayerHP, newOpponentHP)) {
+      opponentTurn(newPlayerHP, playerShield, playerReflect);
+    }
+  };
+
+  const handleCardSelection = (ability) => {
+    setUnlockedAbilities([...unlockedAbilities, ability]);
+    setSelectedCardIds([...selectedCardIds, ability.id]);
+    setShowCardSelection(false);
+    
+    // Start next round
+    const newMaxHP = maxPlayerHP + 25;
+    const newMaxEnergy = maxEnergy + 25;
+    const opponentHPIncrease = Math.floor(Math.random() * 16) + 25; // 25-40
+    const newMaxOpponentHP = maxOpponentHP + opponentHPIncrease;
+    
+    setMaxPlayerHP(newMaxHP);
+    setMaxOpponentHP(newMaxOpponentHP);
+    setMaxEnergy(newMaxEnergy);
+    setPlayerHP(newMaxHP);
+    setOpponentHP(newMaxOpponentHP);
+    setPlayerEnergy(newMaxEnergy);
+    setRound(round + 1);
+    setRoundOver(false);
+    setIsPlayerTurn(true);
+    setOpponentStunned(false);
+    setEnergyBlocked(0);
+    setPlayerPoisoned(0);
+    setPlayerPoisonTurns(0);
+    setPlayerWeakened(false);
+    setPlayerShield(0);
+    setPlayerReflect(0);
+    setOpponentPoison(0);
+    setPoisonTurns(0);
+    setFocusActive(0);
+    setGameLog([`Round ${round + 1} begins!`]);
+  };
+
+  const nextRound = () => {
+    if (playerHP <= 0 || gameWon) {
+      // Game over or won - reset everything
+      setRound(1);
+      setMaxPlayerHP(100);
+      setMaxOpponentHP(100);
+      setMaxEnergy(50);
+      setPlayerHP(100);
+      setOpponentHP(100);
+      setPlayerEnergy(50);
+      setUnlockedAbilities([]);
+      setSelectedCardIds([]);
+      setRoundOver(false);
+      setGameWon(false);
+      setIsPlayerTurn(true);
+      setOpponentStunned(false);
+      setEnergyBlocked(0);
+      setPlayerShield(0);
+      setPlayerReflect(0);
+      setOpponentPoison(0);
+      setPoisonTurns(0);
+      setFocusActive(0);
+      setGameLog(['Battle begins!']);
+    } else {
+      // Show card selection
+      setShowCardSelection(true);
+    }
+  };
+
+  const currentCardSet = CARD_ABILITIES[Math.min(round - 1, CARD_ABILITIES.length - 1)];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-red-900 via-red-800 to-amber-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-5xl">
+        {/* Dojo Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-5xl font-bold text-amber-200 mb-2" style={{fontFamily: 'serif'}}>
+            侍の道場
+          </h1>
+          <p className="text-amber-300 text-xl">Ethan's Samurai Dojo - Round {round}</p>
+        </div>
+
+        {/* Card Selection Screen */}
+        {showCardSelection && (
+          <div className="bg-black bg-opacity-90 fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="max-w-4xl w-full">
+              <h2 className="text-4xl font-bold text-amber-200 text-center mb-8">Choose Your Ability</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {currentCardSet.filter(ability => !selectedCardIds.includes(ability.id)).map((ability) => (
+                  <button
+                    key={ability.id}
+                    onClick={() => handleCardSelection(ability)}
+                    className="bg-gradient-to-b from-amber-700 to-amber-900 border-4 border-amber-500 rounded-lg p-6 hover:scale-105 transition-transform shadow-2xl"
+                  >
+                    <h3 className="text-2xl font-bold text-amber-100 mb-4">{ability.name}</h3>
+                    <div className="space-y-2 text-amber-200">
+                      {ability.damage > 0 && <p className="text-lg">⚔️ Damage: {ability.damage}</p>}
+                      {ability.heal && <p className="text-lg">💚 Heal: {ability.heal} HP</p>}
+                      {ability.shield && <p className="text-lg">🛡️ Shield: {ability.shield}</p>}
+                      {ability.reflect && <p className="text-lg">↩️ Reflect: {ability.reflect}</p>}
+                      {ability.recoil && <p className="text-lg">💥 Recoil: {ability.recoil}</p>}
+                      {ability.poison && <p className="text-lg">☠️ Poison: {ability.poison}/turn (3 turns)</p>}
+                      {ability.energyBoost && <p className="text-lg">⚡ +{ability.energyBoost} energy/attack (3 turns)</p>}
+                      {ability.cleanse && <p className="text-lg">✨ Remove all debuffs</p>}
+                      <p className="text-lg font-bold text-blue-300">⚡ Energy Cost: {ability.energy}</p>
+                    </div>
+                    <p className="text-amber-300 mt-4 text-sm italic">{ability.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Battle Arena */}
+        <div className="bg-amber-950 border-8 border-amber-700 rounded-lg p-8 shadow-2xl">
+          {/* Characters */}
+          <div className="flex justify-between items-center mb-8">
+            {/* Player */}
+            <div className="flex flex-col items-center">
+              <div className={`w-32 h-32 bg-blue-600 rounded-full flex items-center justify-center mb-4 border-4 ${playerHP > 0 ? 'border-blue-300' : 'border-gray-500 opacity-50'} shadow-lg relative`}>
+                <User size={64} className="text-white" />
+                {playerShield > 0 && (
+                  <div className="absolute -top-2 -right-2 bg-gray-700 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold border-2 border-gray-400">
+                    🛡️
+                  </div>
+                )}
+                {playerPoisonTurns > 0 && (
+                  <div className="absolute -bottom-2 -right-2 bg-green-700 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold border-2 border-green-400">
+                    ☠️
+                  </div>
+                )}
+                {playerWeakened && (
+                  <div className="absolute -bottom-2 -left-2 bg-purple-700 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold border-2 border-purple-400">
+                    ⬇️
+                  </div>
+                )}
+              </div>
+              <div className="text-center">
+                <p className="text-amber-200 font-bold text-xl mb-2">Player Samurai</p>
+                <div className="w-40 bg-red-950 rounded-full h-6 border-2 border-amber-600 mb-2">
+                  <div 
+                    className="bg-green-500 h-full rounded-full transition-all duration-500"
+                    style={{width: `${(playerHP / maxPlayerHP) * 100}%`}}
+                  />
+                </div>
+                <p className="text-amber-300 font-bold">{playerHP}/{maxPlayerHP} HP</p>
+                <div className={`w-40 bg-indigo-950 rounded-full h-5 border-2 ${energyBlocked > 0 ? 'border-yellow-400' : 'border-blue-400'} mt-2`}>
+                  <div 
+                    className={`${energyBlocked > 0 ? 'bg-yellow-400' : 'bg-blue-400'} h-full rounded-full transition-all duration-500`}
+                    style={{width: `${(playerEnergy / maxEnergy) * 100}%`}}
+                  />
+                </div>
+                <p className={`${energyBlocked > 0 ? 'text-yellow-300' : 'text-blue-300'} text-sm mt-1 font-bold`}>
+                  ⚡ {playerEnergy}/{maxEnergy} Energy {energyBlocked > 0 ? `(Blocked: ${energyBlocked})` : ''}
+                </p>
+                {focusActive > 0 && <p className="text-purple-300 text-xs mt-1">Focus: {focusActive} turns</p>}
+                {playerPoisonTurns > 0 && <p className="text-green-300 text-xs mt-1">Poisoned: {playerPoisonTurns} turns ({playerPoisoned} dmg)</p>}
+                {playerWeakened && <p className="text-purple-300 text-xs mt-1">Weakened: -30% damage</p>}
+              </div>
+            </div>
+
+            {/* VS Symbol */}
+            <div className="text-6xl font-bold text-amber-400">
+              <Swords size={80} className="animate-pulse" />
+            </div>
+
+            {/* Opponent */}
+            <div className="flex flex-col items-center">
+              <div className={`w-32 h-32 bg-red-600 rounded-full flex items-center justify-center mb-4 border-4 ${opponentHP > 0 ? 'border-red-300' : 'border-gray-500 opacity-50'} shadow-lg relative`}>
+                <User size={64} className="text-white" />
+                {poisonTurns > 0 && (
+                  <div className="absolute -top-2 -right-2 bg-green-700 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold border-2 border-green-400">
+                    ☠️
+                  </div>
+                )}
+              </div>
+              <div className="text-center">
+                <p className="text-amber-200 font-bold text-xl mb-2">Opponent Samurai</p>
+                <div className="w-40 bg-red-950 rounded-full h-6 border-2 border-amber-600">
+                  <div 
+                    className="bg-green-500 h-full rounded-full transition-all duration-500"
+                    style={{width: `${(opponentHP / maxOpponentHP) * 100}%`}}
+                  />
+                </div>
+                <p className="text-amber-300 mt-1 font-bold">{opponentHP}/{maxOpponentHP} HP</p>
+                {poisonTurns > 0 && <p className="text-green-300 text-xs mt-1">Poisoned: {poisonTurns} turns</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Battle Log */}
+          <div className="bg-black bg-opacity-50 rounded-lg p-4 mb-6 border-2 border-amber-700">
+            <h3 className="text-amber-300 font-bold mb-2">Battle Log:</h3>
+            {gameLog.map((log, index) => (
+              <p key={index} className="text-amber-100 text-sm">> {log}</p>
+            ))}
+          </div>
+
+          {/* Round Over Screen */}
+          {roundOver && (
+            <div className="text-center mb-6">
+              <h2 className="text-4xl font-bold text-amber-200 mb-4">
+                {gameWon ? '👑 YOU WON THE DOJO! 👑' : playerHP > 0 ? `🎉 Round ${round} Complete! 🎉` : '💀 GAME OVER 💀'}
+              </h2>
+              {gameWon && (
+                <p className="text-amber-300 text-xl mb-4">You have mastered all 5 rounds!</p>
+              )}
+              <button
+                onClick={nextRound}
+                className="bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-8 rounded-lg text-xl transition-colors"
+              >
+                {gameWon || playerHP <= 0 ? 'Start Over' : 'Choose Ability'}
+              </button>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          {!roundOver && (
+            <div>
+              <div className="flex gap-4 justify-center mb-4">
+                <button
+                  onClick={handleAttack}
+                  disabled={!isPlayerTurn}
+                  className={`${
+                    isPlayerTurn 
+                      ? 'bg-red-600 hover:bg-red-500' 
+                      : 'bg-gray-600 cursor-not-allowed'
+                  } text-white font-bold py-4 px-8 rounded-lg text-xl transition-colors shadow-lg`}
+                >
+                  ⚔️ Attack
+                </button>
+                
+                <button
+                  onClick={() => handleSkill('doubleSlash')}
+                  disabled={!isPlayerTurn}
+                  className={`${
+                    isPlayerTurn 
+                      ? 'bg-purple-600 hover:bg-purple-500' 
+                      : 'bg-gray-600 cursor-not-allowed'
+                  } text-white font-bold py-4 px-6 rounded-lg text-lg transition-colors shadow-lg flex flex-col items-center`}
+                >
+                  <span>🗡️ Double Slash</span>
+                  <span className="text-sm opacity-80">⚡25</span>
+                </button>
+                
+                <button
+                  onClick={() => handleSkill('flashBomb')}
+                  disabled={!isPlayerTurn}
+                  className={`${
+                    isPlayerTurn 
+                      ? 'bg-orange-600 hover:bg-orange-500' 
+                      : 'bg-gray-600 cursor-not-allowed'
+                  } text-white font-bold py-4 px-6 rounded-lg text-lg transition-colors shadow-lg flex flex-col items-center`}
+                >
+                  <span>💥 Flash Bomb</span>
+                  <span className="text-sm opacity-80">⚡35</span>
+                </button>
+              </div>
+              
+              {/* Unlocked Abilities */}
+              {unlockedAbilities.length > 0 && (
+                <div className="flex gap-2 justify-center flex-wrap">
+                  {unlockedAbilities.map((ability, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleUnlockedAbility(ability)}
+                      disabled={!isPlayerTurn}
+                      className={`${
+                        isPlayerTurn 
+                          ? 'bg-teal-600 hover:bg-teal-500' 
+                          : 'bg-gray-600 cursor-not-allowed'
+                      } text-white font-bold py-3 px-5 rounded-lg transition-colors shadow-lg flex flex-col items-center`}
+                    >
+                      <span>✨ {ability.name}</span>
+                      <span className="text-xs opacity-80">⚡{ability.energy}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Turn Indicator */}
+          {!roundOver && (
+            <div className="text-center mt-6">
+              <p className="text-amber-300 text-lg font-bold">
+                {isPlayerTurn ? '⚡ Your Turn' : '⏳ Opponent\'s Turn...'}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
-    
-    <h2>How to Play:</h2>
-    <ul>
-        <li>Click on any white key to hear its note</li>
-        <li>Try playing the keys in order from C to B</li>
-        <li>Experiment with different patterns and create songs</li>
-        <li>The keys will light up when you click them</li>
-    </ul>
-    
-    <script>
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
-        const notes = {
-            'C4': 261.63,
-            'D4': 293.66,
-            'E4': 329.63,
-            'F4': 349.23,
-            'G4': 392.00,
-            'A4': 440.00,
-            'B4': 493.88,
-            'C5': 523.25
-        };
-        
-        function playNote(note) {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.value = notes[note];
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 1);
-        }
-    </script>
-</body>
-</html>
+  );
+}
